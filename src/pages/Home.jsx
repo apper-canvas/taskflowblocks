@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 import MainFeature from '../components/MainFeature';
+import { useDispatch, useSelector } from 'react-redux';
 import getIcon from '../utils/iconUtils';
 
 // Declare icons at the top
@@ -15,67 +16,40 @@ const PlayCircleIcon = getIcon('PlayCircle');
 const CircleDashedIcon = getIcon('CircleDashed');
 const CirclePauseIcon = getIcon('CirclePause');
 
-function Home() {
-  const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    return savedTasks ? JSON.parse(savedTasks) : [
-      {
-        id: '1',
-        title: 'Complete project proposal',
-        description: 'Draft the project proposal document for client review',
-        createdAt: new Date().toISOString(),
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        priority: 'high',
-        status: 'in-progress',
-        category: 'Work'
-      },
-      {
-        id: '2',
-        title: 'Grocery shopping',
-        description: 'Buy vegetables, fruits, and other essentials',
-        createdAt: new Date().toISOString(),
-        dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-        priority: 'medium',
-        status: 'not-started',
-        category: 'Personal'
-      },
-      {
-        id: '3',
-        title: 'Schedule doctor appointment',
-        description: 'Annual checkup with Dr. Smith',
-        createdAt: new Date().toISOString(),
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        priority: 'low',
-        status: 'not-started',
-        category: 'Health'
-      }
-    ];
-  });
-  
-  const [filter, setFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  
-  useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
-  
+import { updateTask, deleteTask } from '../services/taskService';
+import { setFilter, setCategoryFilter } from '../store/tasksSlice';
+
+function Home({ reloadTasks }) {
+  const dispatch = useDispatch();
+  const { tasks, filter, categoryFilter, loading } = useSelector(state => state.tasks);
+    
   const categories = ['Work', 'Personal', 'Health', 'Education', 'Other'];
   
   const addTask = (newTask) => {
-    setTasks(prev => [newTask, ...prev]);
-    toast.success('Task added successfully!');
+    // Task addition is now handled through the service in MainFeature
+    reloadTasks();
   };
   
-  const updateTaskStatus = (id, newStatus) => {
-    setTasks(prev => prev.map(task => 
-      task.id === id ? { ...task, status: newStatus } : task
-    ));
-    toast.info('Task status updated');
+  const updateTaskStatus = async (id, newStatus) => {
+    try {
+      await updateTask(id, { status: newStatus });
+      toast.info('Task status updated');
+      reloadTasks();
+    } catch (error) {
+      toast.error('Failed to update task status');
+      console.error('Error updating task status:', error);
+    }
   };
   
-  const deleteTask = (id) => {
-    setTasks(prev => prev.filter(task => task.id !== id));
-    toast.success('Task deleted successfully');
+  const handleDeleteTask = async (id) => {
+    try {
+      await deleteTask(id);
+      toast.success('Task deleted successfully');
+      reloadTasks();
+    } catch (error) {
+      toast.error('Failed to delete task');
+      console.error('Error deleting task:', error);
+    }
   };
   
   const filteredTasks = tasks.filter(task => {
@@ -113,7 +87,7 @@ function Home() {
     }
   };
 
-  return (
+  return (  
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -132,7 +106,7 @@ function Home() {
             </div>
             <div className="space-y-2">
               <button
-                onClick={() => setCategoryFilter('all')}
+                onClick={() => dispatch(setCategoryFilter('all'))}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                   categoryFilter === 'all' 
                     ? 'bg-primary bg-opacity-10 text-primary'
@@ -145,7 +119,7 @@ function Home() {
               {categories.map(category => (
                 <button
                   key={category}
-                  onClick={() => setCategoryFilter(category)}
+                  onClick={() => dispatch(setCategoryFilter(category))}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                     categoryFilter === category 
                       ? 'bg-primary bg-opacity-10 text-primary'
@@ -167,7 +141,7 @@ function Home() {
             </div>
             <div className="space-y-2">
               <button
-                onClick={() => setFilter('all')}
+                onClick={() => dispatch(setFilter('all'))}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                   filter === 'all' 
                     ? 'bg-primary bg-opacity-10 text-primary'
@@ -178,7 +152,7 @@ function Home() {
               </button>
               
               <button
-                onClick={() => setFilter('not-started')}
+                onClick={() => dispatch(setFilter('not-started'))}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                   filter === 'not-started' 
                     ? 'bg-primary bg-opacity-10 text-primary'
@@ -189,7 +163,7 @@ function Home() {
               </button>
               
               <button
-                onClick={() => setFilter('in-progress')}
+                onClick={() => dispatch(setFilter('in-progress'))}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                   filter === 'in-progress' 
                     ? 'bg-primary bg-opacity-10 text-primary'
@@ -200,7 +174,7 @@ function Home() {
               </button>
               
               <button
-                onClick={() => setFilter('completed')}
+                onClick={() => dispatch(setFilter('completed'))}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                   filter === 'completed' 
                     ? 'bg-primary bg-opacity-10 text-primary'
@@ -211,7 +185,7 @@ function Home() {
               </button>
               
               <button
-                onClick={() => setFilter('on-hold')}
+                onClick={() => dispatch(setFilter('on-hold'))}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                   filter === 'on-hold' 
                     ? 'bg-primary bg-opacity-10 text-primary'
@@ -226,7 +200,7 @@ function Home() {
         
         {/* Main content */}
         <div className="w-full md:w-3/4">
-          <MainFeature onAddTask={addTask} categories={categories} />
+          <MainFeature onAddTask={addTask} categories={categories} reloadTasks={reloadTasks} />
           
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
@@ -237,7 +211,7 @@ function Home() {
               </h2>
               
               <div className="flex items-center gap-2">
-                <span className="text-sm text-surface-500">
+                <span className="text-sm text-surface-500 flex items-center">
                   {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
                 </span>
                 <div className="relative">
@@ -248,7 +222,11 @@ function Home() {
               </div>
             </div>
             
-            {filteredTasks.length > 0 ? (
+            {loading ? (
+              <div className="flex justify-center items-center py-20">
+                <p className="text-lg">Loading tasks...</p>
+              </div>
+            ) : filteredTasks.length > 0 ? (
               <div className="space-y-4">
                 {filteredTasks.map(task => (
                   <motion.div
@@ -317,7 +295,7 @@ function Home() {
                         </select>
                         
                         <button
-                          onClick={() => deleteTask(task.id)}
+                          onClick={() => handleDeleteTask(task.id)}
                           className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900 dark:hover:bg-opacity-20"
                         >
                           Delete

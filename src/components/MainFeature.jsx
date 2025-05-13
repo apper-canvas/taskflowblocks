@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import getIcon from '../utils/iconUtils';
+import { useSelector } from 'react-redux';
+import { createTask } from '../services/taskService';
+import { format } from 'date-fns';
 
 // Declare icons at the top
 const PlusIcon = getIcon('Plus');
@@ -15,7 +18,9 @@ const ArrowUpIcon = getIcon('ArrowUp');
 const LayersIcon = getIcon('Layers');
 const CheckIcon = getIcon('Check');
 
-function MainFeature({ onAddTask, categories }) {
+function MainFeature({ onAddTask, categories, reloadTasks }) {
+  const { tasks } = useSelector(state => state.tasks);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -67,23 +72,35 @@ function MainFeature({ onAddTask, categories }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
       toast.error('Please fix the errors in the form');
       return;
     }
-    
-    const newTask = {
-      id: Date.now().toString(),
-      ...formData,
-      createdAt: new Date().toISOString(),
-      dueDate: new Date(formData.dueDate).toISOString()
-    };
-    
-    onAddTask(newTask);
-    toggleForm();
+
+    try {
+      setIsSubmitting(true);
+      // Format task data for API
+      const taskData = {
+        title: formData.title,
+        description: formData.description,
+        dueDate: formData.dueDate,
+        priority: formData.priority,
+        status: formData.status,
+        category: formData.category
+      };
+      
+      await createTask(taskData);
+      toast.success('Task added successfully!');
+      reloadTasks();
+      toggleForm();
+    } catch (error) {
+      toast.error('Failed to create task: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -296,7 +313,7 @@ function MainFeature({ onAddTask, categories }) {
                   <div className="flex justify-end pt-2">
                     <button
                       type="submit"
-                      className="btn btn-primary flex items-center gap-2"
+                      className={`btn btn-primary flex items-center gap-2 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                       <CheckCircle2Icon className="w-5 h-5" />
                       Create Task
@@ -316,29 +333,25 @@ function MainFeature({ onAddTask, categories }) {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
                   <div className="px-4 py-3 bg-white dark:bg-surface-700 rounded-lg shadow-sm border border-surface-200 dark:border-surface-600">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {/* This would be dynamic based on actual task data */}
-                      3
+                      {tasks.length}
                     </div>
                     <div className="text-xs text-surface-500 dark:text-surface-400">Total Tasks</div>
                   </div>
                   <div className="px-4 py-3 bg-white dark:bg-surface-700 rounded-lg shadow-sm border border-surface-200 dark:border-surface-600">
                     <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                      {/* This would be dynamic based on actual task data */}
-                      1
+                      {tasks.filter(task => task.status === 'in-progress').length}
                     </div>
                     <div className="text-xs text-surface-500 dark:text-surface-400">In Progress</div>
                   </div>
                   <div className="px-4 py-3 bg-white dark:bg-surface-700 rounded-lg shadow-sm border border-surface-200 dark:border-surface-600">
                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {/* This would be dynamic based on actual task data */}
-                      0
+                      {tasks.filter(task => task.status === 'completed').length}
                     </div>
                     <div className="text-xs text-surface-500 dark:text-surface-400">Completed</div>
                   </div>
                   <div className="px-4 py-3 bg-white dark:bg-surface-700 rounded-lg shadow-sm border border-surface-200 dark:border-surface-600">
                     <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                      {/* This would be dynamic based on actual task data */}
-                      2
+                      {tasks.filter(task => task.status === 'not-started').length}
                     </div>
                     <div className="text-xs text-surface-500 dark:text-surface-400">Not Started</div>
                   </div>
